@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>chat app</title>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>this is a test chat app</h1>
+            <button id="clear-btn">clear</button>
+        </div>
+        <div id="status"></div>
+        <div id="chat">
+            <input type="text" id="username" placeholder="Enter name..." />
+        </div>
+        <div class="card">
+            <div id="messages"></div>
+        </div>
+        <textarea id="textarea"></textarea>
+    </div>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+    <script>
+        (() => {
+            // select the needed elements
+            var element = id => { return document.getElementById(id) };
+            // get elements
+            var status = element('status');
+            var messages = element('messages');
+            var textarea = element('textarea');
+            var username = element('username');
+            var clearBtn = element('clear-btn');
+            // set default status
+            var defaultStatus = status.textContent;
+            var setStatus = s => {
+                // set status
+                status.textContent = s;
+                if (s !== defaultStatus) {
+                    var delay = setTimeout(() => {
+                        setStatus(defaultStatus)
+                    }, 4000);
+                }
+            }
+            // connect socket.io
+            var socket = io.connect('http://localhost:4000');
+            // check for connection
+            if (socket !== undefined) {
+                console.log('connected to socket');
+                socket.on('output', data => {
+                    // console.log(data);
+                    if (data.length) {
+                        data.map((el, index) => {
+                            // buildout message div
+                            var message = document.createElement('div');
+                            message.setAttribute('class', 'chat-message');
+                            message.textContent = el.name + ': ' + el.message;
+                            messages.appendChild(message);
+                            messages.insertBefore(message, messages.firstChild);
+                        })
+                    }
+                });
+                // get status from server
+                socket.on('status', data => {
+                    // get message status
+                    setStatus((typeof data === 'object') ? data.message : data);
+                    // if status is clear, clear text
+                    if (data.clear) { textarea.value = '' }
+                })
+                // handle input,  keydown = when we start typing
+                textarea.addEventListener('keydown', (event) => {
+                    // console.log(username.value);
+                    if (event.which === 13 && event.shiftKey === false) {// google for keycode 13 js. this means on enter or return
+                        socket.emit('input', { name: username.value, message: textarea.value });
+                        event.preventDefault();
+                    }
+                })
+                clearBtn.addEventListener('click', ()=>{socket.emit('clear')});
+                socket.on('cleared', ()=>{
+                    messages.textContent = '';
+                })
+            }
+        })();
+    </script>
+</body>
+
+</html>
